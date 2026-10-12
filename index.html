@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>스마트 도어락 블루투스 앱 개발 — MintSoft</title>
+  <meta name="description" content="도어락 제조사의 통신 규격에 맞춰 iOS·Android 블루투스 앱을 개발합니다. 기기 등록, 문 열기, 사용자·카드·비밀번호 관리, 출입 기록까지.">
+  <link rel="canonical" href="https://doorlock.mint-soft.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://doorlock.mint-soft.com/">
+  <meta property="og:title" content="스마트 도어락 블루투스 앱 개발 — MintSoft">
+  <meta property="og:description" content="스마트 도어락과 블루투스로 통신하는 iOS·Android 앱을 만듭니다.">
+  <meta name="theme-color" content="#0a0c0d">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0c0d'/%3E%3Cpath d='M11 15v-3a5 5 0 0 1 10 0v3' fill='none' stroke='%23c8f751' stroke-width='2.2'/%3E%3Crect x='9' y='15' width='14' height='10' rx='2' fill='%23c8f751'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0c0d;
+      --bg-raised: #101314;
+      --panel: #14181a;
+      --panel-hi: #1a1f21;
+      --line: rgba(255, 255, 255, 0.08);
+      --line-strong: rgba(255, 255, 255, 0.16);
+      --text: #eef1ee;
+      --muted: #a1aaa6;
+      --faint: #6b7470;
+      --signal: #c8f751;
+      --signal-dim: rgba(200, 247, 81, 0.14);
+      --signal-ink: #0a0c0d;
+      --sans: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+      --gutter: clamp(20px, 5vw, 48px);
+      --radius: 18px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 17px;
+      line-height: 1.7;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    h1, h2, h3, h4, p { margin: 0; }
+    ul, ol, dl, dd { margin: 0; padding: 0; list-style: none; }
+    :focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; border-radius: 4px; }
+    ::selection { background: var(--signal); color: var(--signal-ink); }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 0 var(--gutter); }
+    .skip { position: absolute; left: -9999px; }
+    .skip:focus { left: 16px; top: 16px; z-index: 30; background: var(--signal); color: var(--signal-ink); padding: 8px 14px; border-radius: 8px; }
+    [id] { scroll-margin-top: 76px; }
+    .mono { font-family: var(--mono); letter-spacing: 0.04em; }
+
+    /* 머리글 */
+    .bar { position: sticky; top: 0; z-index: 20; background: rgba(10, 12, 13, 0.72); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); border-bottom: 1px solid var(--line); }
+    .bar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 24px; height: 64px; }
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+    .brand i { width: 9px; height: 9px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 4px var(--signal-dim); }
+    .brand span { font-family: var(--mono); font-weight: 400; font-size: 11px; color: var(--faint); letter-spacing: 0.1em; }
+    .bar nav { display: flex; align-items: center; gap: clamp(14px, 2.4vw, 30px); font-size: 14.5px; }
+    .bar nav a { text-decoration: none; color: var(--muted); transition: color 0.15s ease; }
+    .bar nav a:hover { color: var(--text); }
+    .bar nav a.cta { color: var(--signal-ink); background: var(--signal); padding: 8px 16px; border-radius: 999px; font-weight: 600; }
+    .bar nav a.cta:hover { color: var(--signal-ink); filter: brightness(1.08); }
+    @media (max-width: 760px) { .bar nav a:not(.cta) { display: none; } }
+    .progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--signal); transform: scaleX(0); transform-origin: left; }
+
+    /* 첫 화면 */
+    .hero { position: relative; overflow: hidden; padding: clamp(56px, 9vw, 120px) 0 clamp(48px, 7vw, 88px); }
+    .hero::before {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background-image:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse 80% 70% at 70% 20%, #000 0%, transparent 75%);
+      -webkit-mask-image: radial-gradient(ellipse 80% 70% at 70% 20%, #000 0%, transparent 75%);
+    }
+    .hero::after {
+      content: ""; position: absolute; right: -12%; top: -30%; width: 760px; height: 760px; pointer-events: none;
+      background: radial-gradient(circle, rgba(200, 247, 81, 0.13) 0%, transparent 62%);
+    }
+    .hero .wrap { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: clamp(32px, 5vw, 72px); align-items: center; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 12px; letter-spacing: 0.12em; color: var(--signal); border: 1px solid var(--signal-dim); background: rgba(200, 247, 81, 0.06); padding: 6px 12px; border-radius: 999px; }
+    h1 { font-size: clamp(40px, 4.4vw, 56px); font-weight: 800; line-height: 1.12; letter-spacing: -0.035em; margin-top: 26px; }
+    h1 em { font-style: normal; color: var(--signal); }
+    .lede { margin-top: 24px; font-size: clamp(16.5px, 1.5vw, 19px); color: var(--muted); max-width: 33em; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+    .btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 24px; font-size: 15.5px; font-weight: 600; text-decoration: none; border-radius: 999px; border: 1px solid var(--line-strong); transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease; }
+    .btn:hover { transform: translateY(-2px); }
+    .btn.primary { background: var(--signal); color: var(--signal-ink); border-color: var(--signal); }
+    .btn.ghost:hover { border-color: var(--text); background: rgba(255, 255, 255, 0.04); }
+    .btn svg { width: 16px; height: 16px; transition: transform 0.2s ease; }
+    .btn:hover svg { transform: translateX(4px); }
+    @media (max-width: 940px) { .hero .wrap { grid-template-columns: 1fr; } h1 { font-size: clamp(28px, 8vw, 56px); } }
+
+    /* 연결 콘솔 */
+    .console { background: linear-gradient(180deg, var(--panel-hi), var(--panel)); border: 1px solid var(--line-strong); border-radius: 22px; box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.4); overflow: hidden; }
+    .console-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.1em; color: var(--faint); }
+    .ble { display: inline-flex; align-items: center; gap: 9px; color: var(--muted); }
+    .ble i { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--signal); }
+    .ble i::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 1px solid var(--signal); opacity: 0; }
+    .lockstate { display: flex; align-items: center; gap: 18px; padding: 26px 22px 22px; border-bottom: 1px solid var(--line); }
+    .lockicon { position: relative; flex: none; width: 64px; height: 64px; border-radius: 18px; background: var(--bg); border: 1px solid var(--line-strong); display: grid; place-items: center; }
+    .lockicon svg { width: 30px; height: 30px; color: var(--muted); }
+    .lockicon .shackle { transform-origin: 9px 11px; }
+    .statetext { position: relative; min-height: 54px; flex: 1; }
+    .statetext > div { position: absolute; inset: 0; }
+    .statetext small { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--faint); }
+    .statetext b { display: block; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.3; }
+    .statetext .after { opacity: 0; }
+    .statetext .after b { color: var(--signal); }
+    .log { padding: 16px 22px 20px; font-family: var(--mono); font-size: 13px; line-height: 1.5; }
+    .log li { display: grid; grid-template-columns: 3.4em 5.6em minmax(0, 1fr); gap: 12px; padding: 7px 0; border-bottom: 1px dashed var(--line); color: var(--muted); }
+    .log li:last-child { border-bottom: 0; }
+    .log time { color: var(--faint); }
+    .log b { font-weight: 500; color: var(--text); }
+    .log li.hit b, .log li.hit span { color: var(--signal); }
+    .log span { font-family: var(--sans); font-size: 14px; }
+    .console-foot { padding: 0 22px 18px; font-size: 12.5px; color: var(--faint); }
+
+    /* 숫자 띠 */
+    .figures { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--bg-raised); }
+    .figures .wrap { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .figures .wrap > div { padding: 30px 24px 28px 0; border-right: 1px solid var(--line); }
+    .figures .wrap > div + div { padding-left: 24px; }
+    .figures .wrap > div:last-child { border-right: 0; }
+    .figures b { display: block; font-size: clamp(26px, 3.2vw, 40px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
+    .figures span { display: block; margin-top: 6px; font-size: 14px; color: var(--muted); }
+    @media (max-width: 760px) {
+      .figures .wrap { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .figures .wrap > div { padding: 22px 16px 20px 0; }
+      .figures .wrap > div:nth-child(2) { border-right: 0; }
+      .figures .wrap > div:nth-child(n + 3) { border-top: 1px solid var(--line); }
+      .figures .wrap > div:nth-child(3) { padding-left: 0; }
+    }
+
+    /* 장 */
+    section.chapter { padding: clamp(72px, 10vw, 136px) 0 0; }
+    .chapter-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(20px, 5vw, 72px); align-items: end; margin-bottom: clamp(36px, 5vw, 60px); }
+    .tag { display: flex; align-items: center; gap: 12px; font-family: var(--mono); font-size: 12px; letter-spacing: 0.12em; color: var(--signal); margin-bottom: 18px; }
+    .tag::after { content: ""; width: 44px; border-top: 1px solid var(--signal); opacity: 0.5; }
+    h2 { font-size: clamp(30px, 4.2vw, 52px); font-weight: 800; line-height: 1.18; letter-spacing: -0.03em; }
+    .chapter-head p { color: var(--muted); max-width: 32em; }
+    @media (max-width: 760px) { .chapter-head { grid-template-columns: 1fr; } }
+
+    /* 연결 흐름 */
+    .flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: relative; }
+    .flow::before { content: ""; position: absolute; left: 0; right: 0; top: 17px; border-top: 1px dashed var(--line-strong); }
+    .flow li { position: relative; padding-right: clamp(16px, 2.4vw, 32px); }
+    .dot { position: relative; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--bg); border: 1px solid var(--line-strong); font-family: var(--mono); font-size: 13px; color: var(--signal); }
+    .flow li:last-child .dot { background: var(--signal); border-color: var(--signal); color: var(--signal-ink); font-weight: 700; }
+    .flow h3 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin: 24px 0 10px; }
+    .flow p { font-size: 15.5px; color: var(--muted); }
+    .flow dl { margin-top: 20px; border-top: 1px solid var(--line); font-size: 14px; }
+    .flow dl div { display: grid; grid-template-columns: 4.6em minmax(0, 1fr); gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+    .flow dt { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.06em; color: var(--faint); padding-top: 3px; }
+    .flow dd { color: var(--text); }
+    @media (max-width: 940px) {
+      .flow { grid-template-columns: 1fr; }
+      .flow::before { left: 17px; right: auto; top: 0; bottom: 0; border-top: 0; border-left: 1px dashed var(--line-strong); }
+      .flow li { padding: 0 0 40px 60px; }
+      .flow li:last-child { padding-bottom: 0; }
+      .dot { position: absolute; left: 0; top: 0; }
+      .flow h3 { margin-top: 2px; }
+    }
+
+    /* 기능 */
+    .bento { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
+    .cell { position: relative; grid-column: span 2; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px 26px 28px; transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease; }
+    .cell:hover { border-color: rgba(200, 247, 81, 0.4); background: var(--panel-hi); transform: translateY(-3px); }
+    .cell::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.25s ease; background: radial-gradient(340px circle at var(--mx, 50%) var(--my, 50%), rgba(200, 247, 81, 0.1), transparent 62%); }
+    .cell:hover::before { opacity: 1; }
+    .cell.wide { grid-column: span 4; display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 28px; align-items: center; }
+    .cell.half { grid-column: span 3; }
+    .cell .no { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.1em; color: var(--faint); }
+    .cell h3 { font-size: 21px; font-weight: 700; letter-spacing: -0.02em; margin: 14px 0 8px; }
+    .cell p { font-size: 15.5px; color: var(--muted); }
+    .states { display: grid; gap: 8px; }
+    .states div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); font-size: 14.5px; color: var(--muted); transition: border-color 0.35s ease, color 0.35s ease; }
+    .states div.on { border-color: rgba(200, 247, 81, 0.45); color: var(--text); }
+    .states code { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.08em; color: var(--faint); transition: color 0.35s ease; }
+    .states div.on code { color: var(--signal); }
+    .records { font-size: 14px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+    .records li { display: grid; grid-template-columns: 4.4em minmax(0, 1fr) auto; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--line); color: var(--muted); }
+    .records li:last-child { border-bottom: 0; }
+    .records time { font-family: var(--mono); font-size: 12px; color: var(--faint); padding-top: 2px; }
+    .records b { font-weight: 500; color: var(--text); }
+    .records i { font-style: normal; font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; color: var(--signal); border: 1px solid var(--signal-dim); border-radius: 999px; padding: 1px 9px; align-self: center; }
+    @media (max-width: 940px) {
+      .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .cell, .cell.half { grid-column: span 1; }
+      .cell.wide { grid-column: span 2; }
+    }
+    @media (max-width: 640px) {
+      .bento { grid-template-columns: 1fr; }
+      .cell, .cell.half, .cell.wide { grid-column: span 1; }
+      .cell.wide { grid-template-columns: 1fr; }
+    }
+
+    /* 맡는 일 */
+    .roles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .role { border: 1px solid var(--line); border-radius: var(--radius); padding: 30px 26px 32px; background: linear-gradient(180deg, var(--panel), transparent); }
+    .role .no { font-family: var(--mono); font-size: 34px; font-weight: 700; line-height: 1; color: transparent; -webkit-text-stroke: 1px var(--signal); }
+    .role h3 { font-size: 21px; font-weight: 700; letter-spacing: -0.02em; margin: 22px 0 8px; }
+    .role p { font-size: 15.5px; color: var(--muted); }
+    @media (max-width: 860px) { .roles { grid-template-columns: 1fr; } }
+
+    /* 문의 */
+    .ask { margin-top: clamp(72px, 10vw, 136px); padding-bottom: clamp(40px, 6vw, 72px); }
+    .ask-card { position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: end; border-radius: 28px; padding: clamp(36px, 6vw, 72px); background: var(--signal); color: var(--signal-ink); }
+    .ask-card::after { content: ""; position: absolute; right: -80px; top: -120px; width: 360px; height: 360px; border-radius: 50%; border: 60px solid rgba(10, 12, 13, 0.07); pointer-events: none; }
+    .ask-card h2 { position: relative; z-index: 1; }
+    .ask-card p { position: relative; z-index: 1; margin-top: 14px; max-width: 32em; color: rgba(10, 12, 13, 0.74); }
+    .ask-card .btn { position: relative; z-index: 1; background: var(--signal-ink); color: var(--text); border-color: var(--signal-ink); }
+    @media (max-width: 760px) { .ask-card { grid-template-columns: 1fr; } }
+
+    footer { border-top: 1px solid var(--line); font-size: 13.5px; color: var(--faint); padding: 24px 0 34px; }
+    footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+    footer a { color: var(--muted); }
+
+    /* 움직임 */
+    @media (prefers-reduced-motion: no-preference) {
+      .rise { opacity: 0; transform: translateY(16px); animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) forwards; animation-delay: var(--d, 0s); }
+      .reveal { opacity: 0; transform: translateY(26px); transition: opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1), transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1); transition-delay: var(--d, 0s); }
+      .reveal.in { opacity: 1; transform: none; }
+
+      .hero::after { animation: drift 14s ease-in-out infinite alternate; }
+      .brand i { animation: breathe 2.6s ease-in-out infinite; }
+      .ble i::after { animation: ping 2.2s ease-out infinite; }
+
+      .log li { opacity: 0; transform: translateX(-8px); }
+      .console.play .log li { animation: rise 0.45s ease-out forwards; animation-delay: calc(0.7s + var(--i) * 0.42s); }
+      .console.play .statetext .before { animation: fade-out 0.3s ease forwards 3.2s; }
+      .console.play .statetext .after { animation: rise 0.4s ease forwards 3.3s; }
+      .console.play .lockicon { animation: armed 0.5s ease forwards 3.3s; }
+      .console.play .lockicon svg { animation: lit 0.5s ease forwards 3.3s; }
+      .console.play .lockicon .shackle { animation: unlatch 0.5s cubic-bezier(0.3, 1.4, 0.5, 1) forwards 3.3s; }
+
+      .flow.anim::before { transform: scaleX(0); transform-origin: left; transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
+      .flow.anim .dot { opacity: 0; transform: scale(0.3); transition: opacity 0.3s ease, transform 0.55s cubic-bezier(0.3, 1.6, 0.5, 1); transition-delay: calc(var(--n) * 0.36s); }
+      .flow.anim h3, .flow.anim p, .flow.anim dl { opacity: 0; transform: translateY(14px); transition: opacity 0.6s ease, transform 0.6s ease; transition-delay: calc(0.12s + var(--n) * 0.36s); }
+      .flow.anim.in::before { transform: none; }
+      .flow.anim.in .dot, .flow.anim.in h3, .flow.anim.in p, .flow.anim.in dl { opacity: 1; transform: none; }
+      .flow.anim.in li:last-child .dot { animation: glow 2.4s ease-in-out 1.8s infinite; }
+
+      .ask-card::after { animation: swell 7s ease-in-out infinite alternate; }
+
+      @keyframes rise { to { opacity: 1; transform: none; } }
+      @keyframes fade-out { to { opacity: 0; } }
+      @keyframes armed { to { border-color: var(--signal); box-shadow: 0 0 0 6px var(--signal-dim); } }
+      @keyframes lit { to { color: var(--signal); } }
+      @keyframes unlatch { to { transform: rotate(-32deg); } }
+      @keyframes ping { 0% { opacity: 0.7; transform: scale(0.6); } 100% { opacity: 0; transform: scale(2.2); } }
+      @keyframes drift { to { transform: translate(-90px, 60px) scale(1.15); } }
+      @keyframes breathe { 50% { box-shadow: 0 0 0 7px rgba(200, 247, 81, 0.05); } }
+      @keyframes glow { 50% { box-shadow: 0 0 0 9px var(--signal-dim); } }
+      @keyframes swell { to { transform: scale(1.25) translate(-20px, 20px); } }
+    }
+    @media (prefers-reduced-motion: no-preference) and (max-width: 940px) {
+      .flow.anim::before { transform: scaleY(0); transform-origin: top; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .statetext .before { opacity: 0; }
+      .statetext .after { opacity: 1; }
+      .lockicon { border-color: var(--signal); }
+      .lockicon svg { color: var(--signal); }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">본문으로 건너뛰기</a>
+
+  <header class="bar">
+    <div class="progress" aria-hidden="true"></div>
+    <div class="wrap">
+      <a class="brand" href="#top" aria-label="처음으로"><i></i>Doorlock BLE<span>MINTSOFT</span></a>
+      <nav aria-label="주요 메뉴">
+        <a href="#flow">연결 흐름</a>
+        <a href="#features">기능</a>
+        <a href="#work">맡는 일</a>
+        <a class="cta" href="#ask">개발 문의</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="hero" id="top">
+      <div class="wrap">
+        <div>
+          <p class="eyebrow rise">BLUETOOTH LE · iOS · ANDROID</p>
+          <h1 class="rise" style="--d: 0.08s">도어락 제조사를 위한<br><em>블루투스 앱</em> 개발</h1>
+          <p class="lede rise" style="--d: 0.18s">도어락 제조사의 통신 규격에 맞춰 iOS 와 Android 앱을 함께 개발합니다. 기기 등록부터 문 열기, 사용자·카드·비밀번호 관리, 출입 기록까지 실제 도어락 제품군에 적용한 구성입니다.</p>
+          <div class="actions rise" style="--d: 0.28s">
+            <a class="btn primary" href="#ask">개발 문의
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+            </a>
+            <a class="btn ghost" href="#features">기능 보기</a>
+          </div>
+        </div>
+
+        <div class="console play rise" style="--d: 0.34s" role="img" aria-label="동작 흐름 예시. 앱이 주변 도어락을 찾아 연결하고, 관리자 인증을 거쳐 문을 열면 도어락이 열림 상태를 알린다.">
+          <div class="console-head">
+            <span class="ble"><i></i>BLE SESSION</span>
+            <span>EXAMPLE</span>
+          </div>
+          <div class="lockstate">
+            <div class="lockicon">
+              <svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path class="shackle" d="M9 13V9.5a6 6 0 0 1 12 0V13"/>
+                <rect x="6" y="13" width="18" height="13" rx="3"/>
+                <path d="M15 18v3"/>
+              </svg>
+            </div>
+            <div class="statetext">
+              <div class="before"><small>DOOR STATE</small><b>잠김</b></div>
+              <div class="after"><small>DOOR STATE</small><b>열림</b></div>
+            </div>
+          </div>
+          <ol class="log">
+            <li style="--i: 0"><time>00.00</time><b>SCAN</b><span>주변 기기 검색</span></li>
+            <li style="--i: 1"><time>00.42</time><b>FOUND</b><span>선택한 모델의 도어락 1대</span></li>
+            <li style="--i: 2"><time>00.61</time><b>CONNECT</b><span>연결됨</span></li>
+            <li style="--i: 3"><time>00.87</time><b>AUTH</b><span>관리자 인증 통과</span></li>
+            <li style="--i: 4"><time>01.02</time><b>OPEN</b><span>열기 요청</span></li>
+            <li style="--i: 5" class="hit"><time>01.15</time><b>NOTIFY</b><span>도어 상태: 열림</span></li>
+          </ol>
+          <p class="console-foot">동작 순서를 보여 주는 예시이며 시각은 실제 측정값이 아닙니다.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="figures">
+      <div class="wrap">
+        <div><b>iOS + Android</b><span>네이티브 앱 두 벌</span></div>
+        <div><b data-count="9">9</b><span>주요 기능</span></div>
+        <div><b data-count="4">4</b><span>출입 수단 — 앱·비밀번호·RF 카드·마스터 코드</span></div>
+        <div><b>KO · EN</b><span>한국어와 영어</span></div>
+      </div>
+    </div>
+
+    <section class="chapter" id="flow">
+      <div class="wrap">
+        <div class="chapter-head">
+          <div>
+            <p class="tag">01 — 연결 흐름</p>
+            <h2>처음 등록부터<br>문이 열릴 때까지</h2>
+          </div>
+          <p>사용자가 도어락을 앱에 붙이고 쓰기까지 거치는 네 단계입니다. 단계마다 앱이 블루투스로 주고받는 내용이 다릅니다.</p>
+        </div>
+        <ol class="flow">
+          <li>
+            <div class="dot">1</div>
+            <h3>고르고 스캔</h3>
+            <p>제품 종류를 고르면 주변 블루투스 기기 가운데 그 모델만 걸러서 보여 줍니다.</p>
+            <dl>
+              <div><dt>기준</dt><dd>기기가 광고하는 이름</dd></div>
+              <div><dt>분류</dt><dd>실린더형 · 데드볼트 · 인터커넥티드</dd></div>
+            </dl>
+          </li>
+          <li>
+            <div class="dot">2</div>
+            <h3>연결과 등록</h3>
+            <p>관리자 인증을 거쳐 앱을 도어락에 등록합니다. 키패드 유무에 따라 절차가 달라집니다.</p>
+            <dl>
+              <div><dt>인증</dt><dd>마스터 코드 또는 마스터 카드</dd></div>
+              <div><dt>저장</dt><dd>기기 이름 · 설치 위치 · 모델</dd></div>
+            </dl>
+          </li>
+          <li>
+            <div class="dot">3</div>
+            <h3>문 열기</h3>
+            <p>근처의 등록된 도어락을 앱에서 엽니다. 상태가 바뀔 때마다 도어락이 앱에 알립니다.</p>
+            <dl>
+              <div><dt>명령</dt><dd>열기 요청 → 결과 응답</dd></div>
+              <div><dt>잠금</dt><dd>자동 · 수동 잠금 모델 구분</dd></div>
+            </dl>
+          </li>
+          <li>
+            <div class="dot">4</div>
+            <h3>관리</h3>
+            <p>설정 모드에서 사용자와 출입 수단을 관리하고, 도어락에 쌓인 기록을 받아 봅니다.</p>
+            <dl>
+              <div><dt>대상</dt><dd>사용자 · 비밀번호 · RF 카드</dd></div>
+              <div><dt>기록</dt><dd>도어락 로그 조회 · 저장</dd></div>
+            </dl>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="chapter" id="features">
+      <div class="wrap">
+        <div class="chapter-head">
+          <div>
+            <p class="tag">02 — 기능</p>
+            <h2>앱에 들어 있는 것</h2>
+          </div>
+          <p>iOS 와 Android 양쪽에 같은 범위로 구현한 기능입니다.</p>
+        </div>
+        <div class="bento">
+          <article class="cell">
+            <span class="no">01</span>
+            <h3>기기 등록</h3>
+            <p>제품 종류별 스캔, 연결, 관리자 인증을 거쳐 등록합니다. 여러 대를 이름과 위치로 구분합니다.</p>
+          </article>
+          <article class="cell wide">
+            <div>
+              <span class="no">02</span>
+              <h3>문 열기와 상태</h3>
+              <p>앱에서 문을 열고, 도어락이 보내는 열림·닫힘·잠김 상태를 화면에 바로 반영합니다.</p>
+            </div>
+            <div class="states" aria-hidden="true">
+              <div class="on">열림<code>OPEN</code></div>
+              <div>닫힘<code>CLOSED</code></div>
+              <div>잠김<code>LOCKED</code></div>
+            </div>
+          </article>
+          <article class="cell half">
+            <span class="no">03</span>
+            <h3>사용자와 권한</h3>
+            <p>관리자와 일반 사용자를 나누고, 사용자마다 출입할 수 있는 기간을 정합니다. 사용자를 팀으로 묶어 관리할 수 있습니다.</p>
+          </article>
+          <article class="cell half">
+            <span class="no">04</span>
+            <h3>비밀번호</h3>
+            <p>사용자별 비밀번호(PIN)와 관리자용 마스터 코드를 도어락에 등록하고 바꾸고 지웁니다.</p>
+          </article>
+          <article class="cell">
+            <span class="no">05</span>
+            <h3>RF 카드</h3>
+            <p>도어락 리더에 카드를 대어 등록하고, 등록된 카드 목록을 앱에서 관리합니다.</p>
+          </article>
+          <article class="cell wide">
+            <div>
+              <span class="no">06</span>
+              <h3>출입 기록</h3>
+              <p>누가 언제 어떤 수단으로 문을 열었는지 도어락에서 받아 와 조회하고, 파일로 저장해 내보냅니다.</p>
+            </div>
+            <ul class="records" aria-hidden="true">
+              <li><time>09:12</time><b>사용자 A</b><i>APP</i></li>
+              <li><time>09:40</time><b>사용자 B</b><i>CARD</i></li>
+              <li><time>11:05</time><b>관리자</b><i>PIN</i></li>
+            </ul>
+          </article>
+          <article class="cell">
+            <span class="no">07</span>
+            <h3>도어락 설정</h3>
+            <p>잠금 동작을 비롯한 도어락 설정값을 앱에서 읽고 바꿉니다.</p>
+          </article>
+          <article class="cell">
+            <span class="no">08</span>
+            <h3>Wi-Fi 연결</h3>
+            <p>앱에서 Wi-Fi 정보를 블루투스로 넘겨 도어락을 네트워크에 연결합니다.</p>
+          </article>
+          <article class="cell">
+            <span class="no">09</span>
+            <h3>생체 인증</h3>
+            <p>Face ID, Touch ID, Android 지문 인증으로 앱 로그인을 보호합니다.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="work">
+      <div class="wrap">
+        <div class="chapter-head">
+          <div>
+            <p class="tag">03 — 맡는 일</p>
+            <h2>이런 일을<br>함께 합니다</h2>
+          </div>
+          <p>도어락 하드웨어와 펌웨어는 제조사가, 스마트폰 앱은 MintSoft 가 맡는 방식입니다.</p>
+        </div>
+        <div class="roles">
+          <div class="role"><span class="no">A</span><h3>신규 앱 개발</h3><p>통신 규격서를 받아 iOS·Android 앱을 처음부터 만듭니다.</p></div>
+          <div class="role"><span class="no">B</span><h3>신모델 추가와 유지보수</h3><p>운영 중인 앱에 새 도어락 모델을 붙이고 OS 업데이트에 맞춰 고칩니다.</p></div>
+          <div class="role"><span class="no">C</span><h3>통신 문제 분석</h3><p>연결 지연, 시간 오차 같은 현상을 로그로 재현하고 앱과 펌웨어 중 어디가 원인인지 가립니다.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="ask" id="ask">
+      <div class="wrap">
+        <div class="ask-card">
+          <div>
+            <h2>도어락 앱이<br>필요하신가요</h2>
+            <p>제품 종류와 통신 규격, 원하는 기능 범위를 알려 주시면 개발 범위와 일정을 안내해 드립니다.</p>
+          </div>
+          <a class="btn" href="https://www.mint-soft.com/contact/">MintSoft 에 문의하기
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© MintSoft</span>
+      <span><a href="https://mint-soft.com">mint-soft.com</a></span>
+    </div>
+  </footer>
+  <script>
+    (function () {
+      var progress = document.querySelector(".progress");
+      function onScroll() {
+        var max = document.documentElement.scrollHeight - window.innerHeight;
+        progress.style.transform = "scaleX(" + (max > 0 ? window.scrollY / max : 0) + ")";
+      }
+      window.addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
+
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) return;
+
+      var groups = [".figures .wrap > div", ".chapter-head > *", ".cell", ".records li", ".role", ".ask-card"];
+      groups.forEach(function (selector) {
+        document.querySelectorAll(selector).forEach(function (el) {
+          var index = Array.prototype.indexOf.call(el.parentNode.children, el);
+          el.style.setProperty("--d", (index % 3) * 0.09 + "s");
+          el.classList.add("reveal");
+        });
+      });
+
+      var flow = document.querySelector(".flow");
+      flow.classList.add("anim");
+      Array.prototype.forEach.call(flow.children, function (li, n) { li.style.setProperty("--n", n); });
+
+      function countUp(el) {
+        var target = Number(el.dataset.count), suffix = el.dataset.suffix || "", start = performance.now();
+        (function tick(now) {
+          var t = Math.min((now - start) / 1100, 1);
+          el.textContent = Math.round(target * (1 - Math.pow(1 - t, 3))) + suffix;
+          if (t < 1) requestAnimationFrame(tick);
+        })(start);
+      }
+
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          var el = entry.target;
+          observer.unobserve(el);
+          el.classList.add("in");
+          el.querySelectorAll("[data-count]").forEach(countUp);
+          if (el.classList.contains("reveal")) {
+            setTimeout(function () { el.classList.remove("reveal", "in"); el.style.removeProperty("--d"); }, 1400);
+          }
+        });
+      }, { threshold: 0.18, rootMargin: "0px 0px -6% 0px" });
+      document.querySelectorAll(".reveal, .flow").forEach(function (el) { observer.observe(el); });
+
+      var consoleEl = document.querySelector(".console");
+      setInterval(function () {
+        consoleEl.classList.remove("play");
+        void consoleEl.offsetWidth;
+        consoleEl.classList.add("play");
+      }, 9000);
+
+      var states = document.querySelectorAll(".states div"), active = 0;
+      setInterval(function () {
+        states[active].classList.remove("on");
+        active = (active + 1) % states.length;
+        states[active].classList.add("on");
+      }, 1700);
+
+      document.querySelector(".bento").addEventListener("pointermove", function (e) {
+        var cell = e.target.closest(".cell");
+        if (!cell) return;
+        var rect = cell.getBoundingClientRect();
+        cell.style.setProperty("--mx", e.clientX - rect.left + "px");
+        cell.style.setProperty("--my", e.clientY - rect.top + "px");
+      });
+    })();
+  </script>
+</body>
+</html>
